@@ -1,0 +1,9 @@
+*/.idea
+/.idea/
+.DS_Store
+/node_modules
+*/node_modules
+
+*.zip
+package-lock.json
+*.ai
