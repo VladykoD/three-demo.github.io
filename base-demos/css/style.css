@@ -1,0 +1,13 @@
+body {
+  background: #141414;
+  margin: 0;
+}
+
+canvas {
+  width: 100vw;
+  height: 100vh;
+}
+
+*:focus {
+  outline: none;
+}
