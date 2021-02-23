@@ -1,14 +1,44 @@
 body {
   margin: 0;
-  padding: 0;
-  overflow: hidden;
+  color: white;
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  cursor: pointer;
 }
 
-canvas {
-  background: #03071e;
-  width: 100vw;
-  height: 100vh;
+#instructions {
+  display: none;
 }
+
+#results,
+body:hover #instructions {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  width: 100%;
+  background-color: rgba(20, 20, 20, 0.75);
+}
+
+a:visited {
+  color: inherit;
+}
+
+#results {
+  display: none;
+  cursor: default;
+}
+
+#results .content,
+#instructions .content {
+  max-width: 300px;
+  padding: 50px;
+  border-radius: 20px;
+}
+
+#results {
+}
+
 #score {
   position: absolute;
   color: white;
@@ -18,13 +48,3 @@ canvas {
   right: 30px;
 }
 
-#results {
-  display: none;
-  cursor: default;
-}
-
-#results .content {
-  max-width: 300px;
-  padding: 50px;
-  border-radius: 20px;
-}
