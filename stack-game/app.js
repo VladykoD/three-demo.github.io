@@ -1,15 +1,60 @@
 (() => {
+    window.focus();
+
     let camera, scene, renderer;
+    let world;
+    let lastTime;
+    let stack;
+    let overhangs;
+
+    const boxHeight = 1;
     const originalBoxSize = 3;
 
-    let stack = [];
-    let overhangs = [];
-    const boxHeight = 1;
+    let autopilot;
+    let gameEnded;
+    let robotPrecision;
 
-    let gameStarted = false;
+    const scoreElement = document.getElementById('score');
+    const resultsElement = document.getElementById('results');
 
     init();
+
+    function setRobotPrecision() {
+        robotPrecision = Math.random() * 1 - 0.5;
+    }
+
     function init() {
+        autopilot = true;
+        gameEnded = false;
+        lastTime = 0;
+        stack = [];
+        overhangs = [];
+        setRobotPrecision();
+
+        //set gravity === init CANNON
+        world = new CANNON.World();
+        world.gravity.set(0, -10, 0);
+        world.broadphase = new CANNON.NaiveBroadphase();
+        world.solver.iterations = 40;
+
+        //init threejs
+        const aspect = window.innerWidth / window.innerHeight;
+        const width = 10;
+        const height = width / aspect;
+
+        //camera
+        camera = new THREE.OrthographicCamera(
+            width / -2,
+            width / 2,
+            height / 2,
+            height / -2,
+            0,
+            100
+        );
+
+        camera.position.set(4,4,4);
+        camera.lookAt(0,0,0);
+
         scene = new THREE.Scene();
 
         //foundation
@@ -26,27 +71,33 @@
         directionLight.position.set(10,20,0);
         scene.add(directionLight);
 
-        //camera
-        const width = 10;
-        const height = width * (window.innerHeight / window.innerHeight);
-        camera = new THREE.OrthographicCamera(
-            width / -2,
-            width / 2,
-            height / 2,
-            height / -2,
-            1,
-            100
-        );
-
-        camera.position.set(4,4,4);
-        camera.lookAt(0,0,0);
-
         //renderer
         renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
-        renderer.render(scene, camera);
-
+        renderer.setAnimationLoop(animation)
         document.body.appendChild(renderer.domElement);
+    }
+
+    function startGame() {
+        autopilot = false;
+        gameEnded = false;
+        lastTime = 0;
+        stack = [];
+        overhangs = [];
+
+        if (instructionsElement) instructionsElement.style.display = 'none';
+        if (resultsElement) resultsElement.style.display = 'none';
+        if (scoreElement) scoreElement.innerText = 0;
+
+        if (world) {
+             while (world.bodies.length > 0) {
+                 world.remove(world.bodies[0]);
+             }
+        }
+
+
+
+
     }
 
 
@@ -54,7 +105,7 @@
     function addLayer(x, z, width, depth, direction) {
         const y = boxHeight * stack.length;
 
-        const layer = generateBox(x,y,z,width, depth)
+        const layer = generateBox(x,y,z,width, depth, false)
         layer.direction = direction;
 
         stack.push(layer);
@@ -62,12 +113,12 @@
 
     function addOverhang(x, z, width, depth) {
         const y = boxHeight * (stack.length - 1);
-        const overhang = generateBox(x,y,z,width,depth);
-        overhangs.push(overhang)
+        const overhang = generateBox(x,y,z,width,depth, true);
 
+        overhangs.push(overhang)
     }
 
-    function generateBox(x,y,z, width, depth) {
+    function generateBox(x,y,z, width, depth, falls) {
         const geometry = new THREE.BoxGeometry(width, boxHeight, depth);
 
         const color = new THREE.Color(`hsl(${30 + stack.length * 4}, 100%, 50%)`);
@@ -78,8 +129,17 @@
 
         scene.add(mesh);
 
+        const shape = new CANNON.Box(
+            new CANNON.Vec3(width/2, boxHeight/2, depth/2)
+        );
+        let mass = falls ? 5 : 0;
+        const body = new CANNON.Body({mass, shape})
+        body.position.set(x,y,z);
+        world.addBody(body);
+
         return {
             threejs: mesh,
+            cannonjs: body,
             width,
             depth,
         };
@@ -145,12 +205,48 @@
 
         const topLayer = stack[stack.length - 1];
         topLayer.threejs.position[topLayer.direction] += speed;
+        topLayer.cannonjs.position[topLayer.direction] += speed;
 
         if (camera.position.y < boxHeight * (stack.length - 2) + 4) {
             camera.position.y += speed;
         }
 
         renderer.render(scene, camera)
+    }
+    lastTime = time;
+
+    function updatePhysics() {
+        world.step(1 / 60);
+
+        overhangs.forEach(element => {
+            element.threejs.position.copy(element.cannonjs.position)
+            element.threejs.quaternion.copy(element.cannonjs.quaternion)
+        })
+    }
+
+
+    function cutBox(topLayer, overlap, size, delta) {
+        const direction = topLayer.direction;
+        const newWidth = direction == 'x' ? overlap : topLayer.width;
+        const newDepth = direction == 'z' ? overlap : topLayer.depth;
+
+        //update metadata
+        topLayer.width = newWidth;
+        topLayer.depth = newDepth;
+
+        //update threeejs model
+        topLayer.threejs.scale[direction] = overlap / size;
+        topLayer.threejs.position[direction] -= delta / 2;
+
+        //update cannojs model
+        topLayer.cannonjs.position[direction] -= delta / 2;
+
+        //replace shapes
+        const shape = new CANNON.Box(
+            new CANNON.Vec3(newWidth / 2, boxHeight / 2, newDepth / 2);
+        )
+        topLayer.cannonjs.shapes = [];
+        topLayer.cannonjs.addShape(shape);
     }
 
 

@@ -9,3 +9,22 @@ canvas {
   width: 100vw;
   height: 100vh;
 }
+#score {
+  position: absolute;
+  color: white;
+  font-size: 3em;
+  font-weight: bold;
+  top: 30px;
+  right: 30px;
+}
+
+#results {
+  display: none;
+  cursor: default;
+}
+
+#results .content {
+  max-width: 300px;
+  padding: 50px;
+  border-radius: 20px;
+}
